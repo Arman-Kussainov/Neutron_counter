@@ -1,0 +1,58 @@
+plugins {
+    id 'com.android.library'
+    id 'maven-publish'
+}
+
+android {
+    compileSdkVersion 30
+    buildToolsVersion '30.0.3'
+
+    defaultConfig {
+        minSdkVersion 17
+        targetSdkVersion 30
+        consumerProguardFiles 'proguard-rules.pro'
+        
+        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunnerArguments = [                    // Raspi   Windows   LinuxVM   ...
+                'rfc2217_server_host': '192.168.0.100',
+                'rfc2217_server_nonstandard_baudrates': 'true',   // true    false     false
+        ]
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+}
+
+dependencies {
+    implementation "androidx.annotation:annotation:1.2.0"
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.mockito:mockito-core:1.10.19'
+    androidTestImplementation 'com.android.support.test:runner:1.0.2'
+    androidTestImplementation 'commons-net:commons-net:3.8.0'
+    androidTestImplementation 'org.apache.commons:commons-lang3:3.11'
+}
+
+// gradle task: publishToMavenLocal
+project.afterEvaluate {
+    publishing {
+        publications {
+            release(MavenPublication) {
+                from components.release
+                artifact androidSourcesJar
+
+                // values used for local maven repo, jitpack uses github release:
+                groupId 'com.github.mik3y'
+                artifactId 'usb-serial-for-android'
+                version 'v3.5.0beta'
+            }
+        }
+    }
+}
+
+task androidSourcesJar(type: Jar) {
+    classifier 'sources'
+    from android.sourceSets.main.java.srcDirs
+}
+
+//apply from: 'coverage.gradle'
