@@ -357,10 +357,12 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
                 int high_noise = 513;
 
                 // data range to display
-                double min = 300, max = 600;
+                //double min = 300, max = 600;
+                double min = 0, max = 800;
                 int window_height = 600;
                 double resolution = (double) window_height / (max - min);
 
+                // how thick should be data point displayed
                 int half_width_y = 2;
                 int half_width_x = 2;
 
@@ -371,7 +373,7 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
 
 
                 //int frame_width=31*2; //<---- WHY?... see full formula below
-                // I'm assuming that we have 62 bytes-> 31 data points. Probably is determined by a buffer size
+                // I'm assuming/detecting that we have 62 bytes-> 31 data points. Probably is determined by a buffer size
                 int data_points = array.length / 2;
                 int frame_width = (2 * half_width_x + 1) * data_points - (data_points - 1) * half_width_x * if_zero;
                 //int max_frames = 6;
@@ -391,30 +393,48 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
 
                     //receiveText.append(String.valueOf(signal_decimal)+" ");
 
-                    if (signal_decimal < low_noise || signal_decimal > high_noise) {// To cut the noise
+                    //let's draw the low and high noise boundaries
+                    //int y_noise= (int) (((double) low_noise - min) * resolution);;
+                    //mybitmap.setPixel((i / 2 + half_width_x) + half_width_x * (i / 2) + 0 + frame_count * frame_width,
+                    //        window_height - 1 - y_noise + 0,
+                    //        Color.argb(255, 255, 0, 0));
+
+
+
+                    //if (signal_decimal < low_noise || signal_decimal > high_noise) {// To cut the noise
 
                              int y = (int) (((double) signal_decimal - min) * resolution);
 //                // I'm assuming that we have 62 bytes-> 31 data points. Probably it is determined by a buffer size
 
                             if (y >= 0 + half_width_y && y < window_height - half_width_y) {
 
+                                // next two loops are designated to draw a fat data point
                                 for (int j = -half_width_x; j <= half_width_x; j++) {
                                     for (int k = -half_width_y; k <= half_width_y; k++) {
 
-                                        if (color_switch % 2 == 0) {
+                                        if (signal_decimal < low_noise || signal_decimal > high_noise) {// To cut the noise
+                                            // color_switch was introduced to see the parts of the signal from different data bursts
+                                            if (color_switch % 2 == 0) {
+                                                mybitmap.setPixel((i / 2 + half_width_x) + half_width_x * (i / 2) + j + frame_count * frame_width,
+                                                        window_height - 1 - y + k,
+                                                        Color.argb(255, 0, 255, 0));
+                                            } else {
+                                                mybitmap.setPixel((i / 2 + half_width_x) + half_width_x * (i / 2) + j + frame_count * frame_width,
+                                                        window_height - 1 - y + k,
+                                                        Color.argb(255, 255, 0, 0));
+                                            }
+                                        }else{
+                                            // plot the noise
                                             mybitmap.setPixel((i / 2 + half_width_x) + half_width_x * (i / 2) + j + frame_count * frame_width,
                                                     window_height - 1 - y + k,
-                                                    Color.argb(255, 0, 255, 0));
-                                        } else {
-                                            mybitmap.setPixel((i / 2 + half_width_x) + half_width_x * (i / 2) + j + frame_count * frame_width,
-                                                    window_height - 1 - y + k,
-                                                    Color.argb(255, 255, 0, 0));
+                                                    Color.argb(255, 0, 0, 255));
                                         }
+
                                     }
                                 }
                             }
 
-                    }
+                    //}
 
                     //((ImageView) localView).setImageBitmap(mybitmap);
 
@@ -428,10 +448,17 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
                 //receiveText.append(String.valueOf(neutron_count)+" ");
                 //receiveText.append(String.valueOf(frame_count)+" ");
 
-                if (color_switch % (10 * max_frames) == 0) {
+//                if (color_switch % (10 * max_frames) == 0) {
+//                    mybitmap.eraseColor(Color.BLACK);
+//                    color_switch = 0;
+//                }
+
+                if (color_switch == max_frames-1) {
                     mybitmap.eraseColor(Color.BLACK);
                     color_switch = 0;
                 }
+
+
 
 //                if (frame_count == max_frames) {
 //                    frame_count = 0;

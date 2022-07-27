@@ -49,6 +49,7 @@ public class HexDump {
         int down_value = 10000; // to detect second half of the first rise
         int slopes_count = 0;
         int neutron_count = 0;
+        int hit=0;
 
 
         StringBuilder result = new StringBuilder();
@@ -93,23 +94,16 @@ public class HexDump {
 
             result.append(String.valueOf(" "+signal_decimal));
 
-            //if (signal_decimal < low_noise || signal_decimal > high_noise) {// To cut the noise
 
             // 03.06.2022
             // signal has 1) VERY fast fall in sig; 2) fast rise below and 3) slower rise above noise level;
             // 4) another even slower fall to the noise level
-            // decided to work with 3) and 4) due to the bigger number of points,  will be enough?...
-            // excluding signal artefact case
-            // I'm still missing the over border signal case! with simple algorithm
-
-            //result.append(String.valueOf(signal_decimal) + " ");
-
-            // Notes from the ^previous and current versions
-            // (2)+(3) long and steep rise
-            // I think it is enough to detect this long rise across the noise level from below and above
-            // because there is nothing left but to slowly relax back to the baseline unless it is an artefact
-            // beside this fast rise is less prone to noise jitter during its progress
+            // decided to work with 3)
+            // excluding signal artefact case for a later studies
             // assume clean rise without a jitter
+
+            // algorithm is designed to work within the single data burst
+            // 62 bytes-> 31 data points for this particular device
             if (signal_decimal<low_noise ) {
 
                 if (signal_decimal >= up_value) {
@@ -119,12 +113,18 @@ public class HexDump {
                     up_counter++;
 
                     if (up_counter >= consecutive_points) {
+                        // I'm giving enough time to signal to relax back to noise level
+                        // so the same, but long, rise will not be counted as multiple hits
+                        // I need to write a lab manual for this device ))
                         up_counter = -100;
                         result.append(" neutron ");
+                        hit++;
                     }
 
                 }
                 else {
+                    // waiting to fall to the lowest data points and assign to its counter value=1
+                    // and begin to rise in up_value from this point
                     up_counter = 1;
                     up_value = signal_decimal;
                     result.append("^");
@@ -144,7 +144,9 @@ public class HexDump {
 
             line[lineIndex++] = b;
         }
-
+    if (hit==0){
+        result.setLength(0);
+    }
         return result.toString();
     }
 
