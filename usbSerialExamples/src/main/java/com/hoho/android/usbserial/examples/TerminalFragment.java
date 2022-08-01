@@ -141,7 +141,8 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
         View receiveBtn = view.findViewById(R.id.receive_btn);
         controlLines = new ControlLines(view);
 
-        mybitmap.eraseColor(Color.BLACK);
+
+        //mybitmap.eraseColor(Color.BLACK);
 
         if (withIoManager) {
             receiveBtn.setVisibility(View.GONE);
@@ -323,13 +324,18 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
         //spn.append("receive " + data.length + " bytes\n");
         if (data.length >= 0) {
             // comment out the next line if now numerical output is necessary
-            spn.append(HexDump.dumpHexString(data)).append("\n");
+            // spn.append(HexDump.dumpHexString(data)).append("\n");
+
+            if (HexDump.returnCounts(data)!=0){
+            String ncount= String.valueOf(HexDump.returnCounts(data));
+            spn.append(ncount).append("\t");
+
             // To plot data
-            GraphicalOutput(data);
+            GraphicalOutput(data);}
         }
         // spn.append((char) width);
         // comment out the next line if now numerical output is necessary
-        receiveText.append(spn);
+        //receiveText.append(spn);
     }
 
     private void GraphicalOutput(byte[] array) {
@@ -338,11 +344,12 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
 
         if (frame_count == max_frames) {
             frame_count = 0;
-            //mybitmap.eraseColor(Color.BLACK);
-            //color_switch = 0;
+            mybitmap.eraseColor(Color.BLACK);
+            color_switch = 0;
             // I supposed it will clear the whole roll of the scrollview...
             receiveText.setText(null);
         }
+
 
         ImageView localView = (ImageView) getView().findViewById(R.id.graph);
         final Runnable PLotData = new Runnable() {
@@ -363,8 +370,8 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
                 double resolution = (double) window_height / (max - min);
 
                 // how thick should be data point displayed
-                int half_width_y = 2;
-                int half_width_x = 2;
+                int half_width_y = 3;
+                int half_width_x = 3;
 
                 int if_zero = 0;
                 if (half_width_x >= 1) {
@@ -391,16 +398,6 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
                     signal.append(HEX_DIGITS[b2 & 0x0F]);
                     int signal_decimal = Integer.parseInt(String.valueOf(signal), 16);
 
-                    //receiveText.append(String.valueOf(signal_decimal)+" ");
-
-                    //let's draw the low and high noise boundaries
-                    //int y_noise= (int) (((double) low_noise - min) * resolution);;
-                    //mybitmap.setPixel((i / 2 + half_width_x) + half_width_x * (i / 2) + 0 + frame_count * frame_width,
-                    //        window_height - 1 - y_noise + 0,
-                    //        Color.argb(255, 255, 0, 0));
-
-
-
                     //if (signal_decimal < low_noise || signal_decimal > high_noise) {// To cut the noise
 
                              int y = (int) (((double) signal_decimal - min) * resolution);
@@ -412,7 +409,7 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
                                 for (int j = -half_width_x; j <= half_width_x; j++) {
                                     for (int k = -half_width_y; k <= half_width_y; k++) {
 
-                                        if (signal_decimal < low_noise || signal_decimal > high_noise) {// To cut the noise
+                                        //if (signal_decimal < low_noise || signal_decimal > high_noise) {// To cut the noise from display
                                             // color_switch was introduced to see the parts of the signal from different data bursts
                                             if (color_switch % 2 == 0) {
                                                 mybitmap.setPixel((i / 2 + half_width_x) + half_width_x * (i / 2) + j + frame_count * frame_width,
@@ -423,12 +420,13 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
                                                         window_height - 1 - y + k,
                                                         Color.argb(255, 255, 0, 0));
                                             }
-                                        }else{
-                                            // plot the noise
-                                            mybitmap.setPixel((i / 2 + half_width_x) + half_width_x * (i / 2) + j + frame_count * frame_width,
-                                                    window_height - 1 - y + k,
-                                                    Color.argb(255, 0, 0, 255));
-                                        }
+                                        //}
+                                        //else{
+                                            // plot the noise. clean later the code
+                                        //    mybitmap.setPixel((i / 2 + half_width_x) + half_width_x * (i / 2) + j + frame_count * frame_width,
+                                        //            window_height - 1 - y + k,
+                                        //            Color.argb(255, 0, 0, 255));
+                                        //}
 
                                     }
                                 }
@@ -444,6 +442,8 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
                 color_switch++;
 
                     ((ImageView) localView).setImageBitmap(mybitmap);
+                    // seems does not make a bigger difference
+                    //((ImageView) localView).invalidate();
 
                 //receiveText.append(String.valueOf(neutron_count)+" ");
                 //receiveText.append(String.valueOf(frame_count)+" ");
@@ -451,21 +451,6 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
 //                if (color_switch % (10 * max_frames) == 0) {
 //                    mybitmap.eraseColor(Color.BLACK);
 //                    color_switch = 0;
-//                }
-
-                if (color_switch == max_frames-1) {
-                    mybitmap.eraseColor(Color.BLACK);
-                    color_switch = 0;
-                }
-
-
-
-//                if (frame_count == max_frames) {
-//                    frame_count = 0;
-//                    mybitmap.eraseColor(Color.BLACK);
-//                    color_switch = 0;
-//                    // I supposed it will clear the whole roll of the scrollview...
-//                    receiveText.setText(null);
 //                }
 
 

@@ -38,24 +38,17 @@ public class HexDump {
 
         int consecutive_points = 3;
         int up_counter = 0;
-        int down_counter = 0;
-
-        int rise=0,down=0,peak=0, continuity_flag=0;
 
         int low_noise = 509;
         int high_noise = 513;
-        int average_noise = (int) 0.5 * (low_noise + high_noise);
         int up_value = 0; // to detect second half of the first rise
-        int down_value = 10000; // to detect second half of the first rise
-        int slopes_count = 0;
-        int neutron_count = 0;
-        int hit=0;
+        int hit=0; // whether or not, at least one neutron, was detected
 
 
         StringBuilder result = new StringBuilder();
 
-        byte[] line = new byte[8];
-        int lineIndex = 0;
+        //byte[] line = new byte[8];
+        //int lineIndex = 0;
 
         // AK 26.04.2022 length -> length-1
         // i++ -> i+=2 we need to concatenate two pairs of hex numbers
@@ -64,7 +57,7 @@ public class HexDump {
 
             StringBuilder signal = new StringBuilder();
 
-            if (lineIndex == line.length) {
+            //if (lineIndex == line.length) {
                 //for (int j = 0; j < line.length; j++) {
                 //    if (line[j] > ' ' && line[j] < '~') {
                 //        result.append(new String(line, j, 1));
@@ -73,10 +66,9 @@ public class HexDump {
                 //        result.append(".");
                 //    }
                 //}
-
                 //result.append("\n");
-                lineIndex = 0;
-            }
+                //lineIndex = 0;
+            //}
 
             byte b = array[i];
             //result.append(HEX_DIGITS[(b >>> 4) & 0x0F]);
@@ -105,6 +97,9 @@ public class HexDump {
             // algorithm is designed to work within the single data burst
             // 62 bytes-> 31 data points for this particular device
             if (signal_decimal<low_noise ) {
+                // looking for up movements below noise level
+                // redefining the up_value in the process
+                // the new data from buffer returns it to up_value=0 value automatically
 
                 if (signal_decimal >= up_value) {
 
@@ -126,10 +121,13 @@ public class HexDump {
                     // waiting to fall to the lowest data points and assign to its counter value=1
                     // and begin to rise in up_value from this point
                     up_counter = 1;
+                    // this way I can rise the up_value I'm testing the signal about to something different from 0
+                    // and not smthng about the noise level
                     up_value = signal_decimal;
-                    result.append("^");
+                    result.append("v");
                 }
             }
+
             // Testing how data will fit to plot window
             //double min=340, max=580;
             //double window=100;
@@ -142,12 +140,93 @@ public class HexDump {
             //result.append(" ");
             //}
 
-            line[lineIndex++] = b;
+            // leftovers from original code with some HEX adornments
+            //line[lineIndex++] = b;
         }
+        // display data buffer with detected neutrons only
     if (hit==0){
         result.setLength(0);
     }
         return result.toString();
+    }
+
+    public static int returnCounts(byte[] array) {
+        return returnCounts(array, 0, array.length);}
+
+     public static int returnCounts(byte[] array, int offset, int length) {
+
+        int consecutive_points = 3;
+        int up_counter = 0;
+
+        int low_noise = 509;
+        int high_noise = 513;
+        int up_value = 0; // to detect second half of the first rise
+        int hit=0; // whether or not, at least one neutron, was detected
+
+        StringBuilder result = new StringBuilder();
+
+        for (int i = offset; i < offset + length - 1; i += 2) {
+
+            StringBuilder signal = new StringBuilder();
+
+            byte b = array[i];
+
+            byte b1 = array[i];
+            signal.append(HEX_DIGITS[(b1 >>> 4) & 0x0F]);
+            signal.append(HEX_DIGITS[b1 & 0x0F]);
+
+            byte b2 = array[i + 1];
+            signal.append(HEX_DIGITS[(b2 >>> 4) & 0x0F]);
+            signal.append(HEX_DIGITS[b2 & 0x0F]);
+
+            int signal_decimal = Integer.parseInt(String.valueOf(signal), 16);
+
+            //result.append(String.valueOf(" "+signal_decimal));
+
+
+            // 03.06.2022
+            // signal has 1) VERY fast fall in sig; 2) fast rise below and 3) slower rise above noise level;
+            // 4) another even slower fall to the noise level
+            // decided to work with 3)
+            // excluding signal artefact case for a later studies
+            // assume clean rise without a jitter
+
+            // algorithm is designed to work within the single data burst
+            // 62 bytes-> 31 data points for this particular device
+            if (signal_decimal<low_noise ) {
+
+                // looking for up movements below noise level
+                // redefining the up_value in the process
+                // the new data from buffer returns it to up_value=0 value automatically
+
+                if (signal_decimal >= up_value) {
+
+                    up_value = signal_decimal;
+                    //result.append("^");
+                    up_counter++;
+
+                    if (up_counter >= consecutive_points) {
+                        // I'm giving enough time to signal to relax back to noise level
+                        // so the same, but long, rise will not be counted as multiple hits
+                        // I need to write a lab manual for this device ))
+                        up_counter = -100;
+                        //result.append(" neutron ");
+                        hit++;
+                    }
+
+                }
+                else {
+                    // waiting to fall to the lowest data points and assign to its counter value=1
+                    // and begin to rise in up_value from this point
+                    up_counter = 1;
+                    // this way I can rise the up_value I'm testing the signal about to something different from 0
+                    // and not smthng about the noise level
+                    up_value = signal_decimal;
+                    //result.append("v");
+                }
+            }
+        }
+        return hit;
     }
 
     public static String toHexString(byte b) {
