@@ -1,5 +1,7 @@
 package com.hoho.android.usbserial.examples;
 
+import static java.lang.Math.round;
+
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -69,14 +71,35 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
     private boolean connected = false;
 
     // works. will be used later for a nicer screen fill
-    int height =Resources.getSystem().getDisplayMetrics().heightPixels;
+    int height = Resources.getSystem().getDisplayMetrics().heightPixels;
     int width = Resources.getSystem().getDisplayMetrics().widthPixels;
 
+    // space allotted for the registered signal
+    int window_height = (int)(1.1*(double)height/2.0);
 
-    Bitmap mybitmap = Bitmap.createBitmap(width, 600, Bitmap.Config.ARGB_8888);
+    Bitmap mybitmap = Bitmap.createBitmap(width, window_height, Bitmap.Config.ARGB_8888);
 
     int frame_count = 0;
     int color_switch = 0;
+    long time_start = 0, time_passed = 0;
+    int events_counter=1;
+    double count_speed = 0;
+
+        int low_noise;
+        int high_noise;
+
+        // data range to display
+        double min, max;
+        double resolution;
+
+        // how thick should be data point displayed
+        int half_width_y;
+        int half_width_x;
+
+        int data_points;
+        int frame_width;
+        int max_frames;
+
 
     public TerminalFragment() {
         broadcastReceiver = new BroadcastReceiver() {
@@ -104,7 +127,6 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
         portNum = getArguments().getInt("port");
         baudRate = getArguments().getInt("baud");
         withIoManager = getArguments().getBoolean("withIoManager");
-
     }
 
     @Override
@@ -318,40 +340,87 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
 
 
     private void receive(byte[] data) {
-        // I supposed it will clear the whole roll of the scrollview...
-        // receiveText.setText(null);
+
+        low_noise = 509;
+        high_noise = 513;
+
+        // data range to display
+        min = 200; max = 800;
+        resolution = (double) window_height / (max - min);
+
+        // how thick should be data point displayed
+        half_width_y = 3;
+        half_width_x = 3;
+
+        //int frame_width=31*2; //<---- WHY?... see full formula below
+        // I'm assuming/detecting that we have 62 bytes-> 31 data points. Probably is determined by a buffer size
+        // my buffer size is 62 bytes. It is devices specific (most probably) and ... whatever)
+        data_points = data.length / 2;
+        //int frame_width = (2 * half_width_x + 1) * data_points - (data_points - 1) * half_width_x * if_zero;
+        frame_width = (2 * half_width_x + 1) * data_points - (data_points - 1) * half_width_x;
+        max_frames = width/frame_width;
+
+
         SpannableStringBuilder spn = new SpannableStringBuilder();
         //spn.append("receive " + data.length + " bytes\n");
         if (data.length >= 0) {
+            //packets_counter++;
             // comment out the next line if now numerical output is necessary
             // spn.append(HexDump.dumpHexString(data)).append("\n");
+            int events=HexDump.returnCounts(data);
 
-            if (HexDump.returnCounts(data)!=0){
-            String ncount= String.valueOf(HexDump.returnCounts(data));
-            spn.append(ncount).append("\t");
+            if (events != 0) {
 
-            // To plot data
-            GraphicalOutput(data);}
+                if (frame_count == max_frames) {
+                    spn.append(String.valueOf(round(count_speed*10d)/10d)).
+                            append(" counts/second").append("\n");
+                }
+
+                // To plot data
+                GraphicalOutput(data);
+
+                events_counter+=events;
+/*                // number of events per current data buffer
+                    spn.append("[").
+                        append(String.valueOf(events)).
+                        append("] ").
+                        append("\t");
+*/
+
+            }
+
         }
-        // spn.append((char) width);
+
         // comment out the next line if now numerical output is necessary
-        //receiveText.append(spn);
+        receiveText.append(spn);
     }
 
     private void GraphicalOutput(byte[] array) {
 
-        int max_frames = 8;
+        ImageView localView = (ImageView) getView().findViewById(R.id.graph);
 
+        // as soon as the previous max_frames have been displayed, we can do this
         if (frame_count == max_frames) {
+            // at this point, we are stepping into the max_frame+1 events
+            // so the UI will display the previous count speed
+            time_passed=System.currentTimeMillis()-time_start;
+            count_speed=Double.valueOf(events_counter)*1000.0d/Double.valueOf(time_passed);
+
+            //receiveText.append("\n");
+            //receiveText.append(String.valueOf(count_speed));
+            //receiveText.append("\n");
+
             frame_count = 0;
+            events_counter=0;
             mybitmap.eraseColor(Color.BLACK);
+
             color_switch = 0;
-            // I supposed it will clear the whole roll of the scrollview...
+            // It clears the whole roll of the scrolling text
             receiveText.setText(null);
+            time_start=System.currentTimeMillis();
         }
 
 
-        ImageView localView = (ImageView) getView().findViewById(R.id.graph);
         final Runnable PLotData = new Runnable() {
             private final char[] HEX_DIGITS = {
                     '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
@@ -360,30 +429,37 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
             @Override
             public void run() {
 
+/*
                 int low_noise = 509;
                 int high_noise = 513;
 
                 // data range to display
                 //double min = 300, max = 600;
                 double min = 0, max = 800;
-                int window_height = 600;
+                //int window_height = 1000;
                 double resolution = (double) window_height / (max - min);
 
                 // how thick should be data point displayed
                 int half_width_y = 3;
                 int half_width_x = 3;
+*/
 
-                int if_zero = 0;
-                if (half_width_x >= 1) {
-                    if_zero = 1;
-                }
+                // the leftovers from the previous algorithms
+                // seems now it is working just fine
+                //int if_zero = 0;
+                //if (half_width_x >= 1) {
+                //    if_zero = 1;
+                //}
 
-
+/*
                 //int frame_width=31*2; //<---- WHY?... see full formula below
                 // I'm assuming/detecting that we have 62 bytes-> 31 data points. Probably is determined by a buffer size
+                // my buffer size is 62 bytes. It is devices specific (most probably) and ... whatever)
                 int data_points = array.length / 2;
-                int frame_width = (2 * half_width_x + 1) * data_points - (data_points - 1) * half_width_x * if_zero;
-                //int max_frames = 6;
+                //int frame_width = (2 * half_width_x + 1) * data_points - (data_points - 1) * half_width_x * if_zero;
+                int frame_width = (2 * half_width_x + 1) * data_points - (data_points - 1) * half_width_x;
+                int max_frames = width/frame_width;
+*/
 
                 for (int i = 0; i < array.length - 1; i += 2) {
 
@@ -400,37 +476,37 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
 
                     //if (signal_decimal < low_noise || signal_decimal > high_noise) {// To cut the noise
 
-                             int y = (int) (((double) signal_decimal - min) * resolution);
+                    int y = (int) (((double) signal_decimal - min) * resolution);
 //                // I'm assuming that we have 62 bytes-> 31 data points. Probably it is determined by a buffer size
 
-                            if (y >= 0 + half_width_y && y < window_height - half_width_y) {
+                    if (y >= 0 + half_width_y && y < window_height - half_width_y) {
 
-                                // next two loops are designated to draw a fat data point
-                                for (int j = -half_width_x; j <= half_width_x; j++) {
-                                    for (int k = -half_width_y; k <= half_width_y; k++) {
+                        // next two loops are designated to draw a fat data point
+                        for (int j = -half_width_x; j <= half_width_x; j++) {
+                            for (int k = -half_width_y; k <= half_width_y; k++) {
 
-                                        //if (signal_decimal < low_noise || signal_decimal > high_noise) {// To cut the noise from display
-                                            // color_switch was introduced to see the parts of the signal from different data bursts
-                                            if (color_switch % 2 == 0) {
-                                                mybitmap.setPixel((i / 2 + half_width_x) + half_width_x * (i / 2) + j + frame_count * frame_width,
-                                                        window_height - 1 - y + k,
-                                                        Color.argb(255, 0, 255, 0));
-                                            } else {
-                                                mybitmap.setPixel((i / 2 + half_width_x) + half_width_x * (i / 2) + j + frame_count * frame_width,
-                                                        window_height - 1 - y + k,
-                                                        Color.argb(255, 255, 0, 0));
-                                            }
-                                        //}
-                                        //else{
-                                            // plot the noise. clean later the code
-                                        //    mybitmap.setPixel((i / 2 + half_width_x) + half_width_x * (i / 2) + j + frame_count * frame_width,
-                                        //            window_height - 1 - y + k,
-                                        //            Color.argb(255, 0, 0, 255));
-                                        //}
-
-                                    }
+                                //if (signal_decimal < low_noise || signal_decimal > high_noise) {// To cut the noise from display
+                                // color_switch was introduced to see the parts of the signal from different data bursts
+                                if (color_switch % 2 == 0) {
+                                    mybitmap.setPixel((i / 2 + half_width_x) + half_width_x * (i / 2) + j + frame_count * frame_width,
+                                            window_height - 1 - y + k,
+                                            Color.argb(255, 0, 255, 0));
+                                } else {
+                                    mybitmap.setPixel((i / 2 + half_width_x) + half_width_x * (i / 2) + j + frame_count * frame_width,
+                                            window_height - 1 - y + k,
+                                            Color.argb(255, 255, 0, 0));
                                 }
+                                //}
+                                //else{
+                                // plot the noise. clean later the code
+                                //    mybitmap.setPixel((i / 2 + half_width_x) + half_width_x * (i / 2) + j + frame_count * frame_width,
+                                //            window_height - 1 - y + k,
+                                //            Color.argb(255, 0, 0, 255));
+                                //}
+
                             }
+                        }
+                    }
 
                     //}
 
@@ -441,9 +517,9 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
                 frame_count++;
                 color_switch++;
 
-                    ((ImageView) localView).setImageBitmap(mybitmap);
-                    // seems does not make a bigger difference
-                    //((ImageView) localView).invalidate();
+                ((ImageView) localView).setImageBitmap(mybitmap);
+                // seems does not make a bigger difference
+                //((ImageView) localView).invalidate();
 
                 //receiveText.append(String.valueOf(neutron_count)+" ");
                 //receiveText.append(String.valueOf(frame_count)+" ");

@@ -128,18 +128,6 @@ public class HexDump {
                 }
             }
 
-            // Testing how data will fit to plot window
-            //double min=340, max=580;
-            //double window=100;
-            //double resolution=window/(max-min);
-
-            //int y= (int) (((double)signal_decimal-min)*resolution);
-            //result.append(y);
-
-            //result.append(signal_decimal);
-            //result.append(" ");
-            //}
-
             // leftovers from original code with some HEX adornments
             //line[lineIndex++] = b;
         }
