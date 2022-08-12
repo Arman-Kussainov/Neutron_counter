@@ -82,7 +82,7 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
     int frame_count = 0;
     int color_switch = 0;
     long time_start = 0, time_passed = 0;
-    int events_counter=1;
+    int events_counter=0;
     double count_speed = 0;
 
         int low_noise;
@@ -356,7 +356,7 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
         // I'm assuming/detecting that we have 62 bytes-> 31 data points. Probably is determined by a buffer size
         // my buffer size is 62 bytes. It is devices specific (most probably) and ... whatever)
         data_points = data.length / 2;
-        //int frame_width = (2 * half_width_x + 1) * data_points - (data_points - 1) * half_width_x * if_zero;
+        // the "tails" of two adjacent data points overlap by  half_width_x
         frame_width = (2 * half_width_x + 1) * data_points - (data_points - 1) * half_width_x;
         max_frames = width/frame_width;
 
@@ -379,6 +379,7 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
                 // To plot data
                 GraphicalOutput(data);
 
+                // events are counted after the data is displayed
                 events_counter+=events;
 /*                // number of events per current data buffer
                     spn.append("[").
@@ -399,7 +400,7 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
 
         ImageView localView = (ImageView) getView().findViewById(R.id.graph);
 
-        // as soon as the previous max_frames have been displayed, we can do this
+        // as soon as the previous max_frames have been displayed "==", we can do this
         if (frame_count == max_frames) {
             // at this point, we are stepping into the max_frame+1 events
             // so the UI will display the previous count speed
@@ -429,42 +430,10 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
             @Override
             public void run() {
 
-/*
-                int low_noise = 509;
-                int high_noise = 513;
-
-                // data range to display
-                //double min = 300, max = 600;
-                double min = 0, max = 800;
-                //int window_height = 1000;
-                double resolution = (double) window_height / (max - min);
-
-                // how thick should be data point displayed
-                int half_width_y = 3;
-                int half_width_x = 3;
-*/
-
-                // the leftovers from the previous algorithms
-                // seems now it is working just fine
-                //int if_zero = 0;
-                //if (half_width_x >= 1) {
-                //    if_zero = 1;
-                //}
-
-/*
-                //int frame_width=31*2; //<---- WHY?... see full formula below
-                // I'm assuming/detecting that we have 62 bytes-> 31 data points. Probably is determined by a buffer size
-                // my buffer size is 62 bytes. It is devices specific (most probably) and ... whatever)
-                int data_points = array.length / 2;
-                //int frame_width = (2 * half_width_x + 1) * data_points - (data_points - 1) * half_width_x * if_zero;
-                int frame_width = (2 * half_width_x + 1) * data_points - (data_points - 1) * half_width_x;
-                int max_frames = width/frame_width;
-*/
-
                 for (int i = 0; i < array.length - 1; i += 2) {
 
                     StringBuilder signal = new StringBuilder();
-
+                    // I run it two times (HEX to decimal) for the same data set, need to optimize (maybe)
                     // byte to HEX and then to decimal...could be shorter :)
                     byte b1 = array[i];
                     signal.append(HEX_DIGITS[(b1 >>> 4) & 0x0F]);
