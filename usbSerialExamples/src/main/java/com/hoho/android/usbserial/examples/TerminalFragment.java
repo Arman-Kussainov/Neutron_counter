@@ -1,5 +1,6 @@
 package com.hoho.android.usbserial.examples;
 
+import static java.lang.Math.abs;
 import static java.lang.Math.round;
 
 import android.app.PendingIntent;
@@ -49,57 +50,51 @@ import java.util.EnumSet;
 public class TerminalFragment extends Fragment implements SerialInputOutputManager.Listener {
 
     private static final String METAG = "CCCP";
-
-    private enum UsbPermission {Unknown, Requested, Granted, Denied}
-
     private static final String INTENT_ACTION_GRANT_USB = BuildConfig.APPLICATION_ID + ".GRANT_USB";
     private static final int WRITE_WAIT_MILLIS = 2000;
     private static final int READ_WAIT_MILLIS = 2000;
-
-    private int deviceId, portNum, baudRate;
-    private boolean withIoManager;
-
     private final BroadcastReceiver broadcastReceiver;
     private final Handler mainLooper;
-    private TextView receiveText;
-
-    private ControlLines controlLines;
-
-    private SerialInputOutputManager usbIoManager;
-    private UsbSerialPort usbSerialPort;
-    private UsbPermission usbPermission = UsbPermission.Unknown;
-    private boolean connected = false;
-
     // works. will be used later for a nicer screen fill
     int height = Resources.getSystem().getDisplayMetrics().heightPixels;
     int width = Resources.getSystem().getDisplayMetrics().widthPixels;
 
-    // space allotted for the registered signal
-    int window_height = (int)(1.1*(double)height/2.0);
+    int[][] counts_values = new int[2][width];
+    // observation time in seconds
+    int time_range=2; // in minutes
+    long time_strt = System.currentTimeMillis(), time_fnshd=0;
+    private int counter=0;
 
+    // space allotted for the registered signal
+    int window_height = (int) (0.4 * (double) height);
+    int neutron_window_height = (int) (0.5 * (double) window_height);
     Bitmap mybitmap = Bitmap.createBitmap(width, window_height, Bitmap.Config.ARGB_8888);
+    Bitmap TimeBitmap = Bitmap.createBitmap(width, neutron_window_height, Bitmap.Config.ARGB_8888);
 
     int frame_count = 0;
     int color_switch = 0;
     long time_start = 0, time_passed = 0;
-    int events_counter=0;
+    int events_counter = 0;
     double count_speed = 0;
-
-        int low_noise;
-        int high_noise;
-
-        // data range to display
-        double min, max;
-        double resolution;
-
-        // how thick should be data point displayed
-        int half_width_y;
-        int half_width_x;
-
-        int data_points;
-        int frame_width;
-        int max_frames;
-
+    int low_noise;
+    int high_noise;
+    // data range to display
+    double min, max;
+    double resolution;
+    // how thick should be data point displayed
+    int half_width_y;
+    int half_width_x;
+    int data_points;
+    int frame_width;
+    int max_frames;
+    private int deviceId, portNum, baudRate;
+    private boolean withIoManager;
+    private TextView receiveText;
+    private ControlLines controlLines;
+    private SerialInputOutputManager usbIoManager;
+    private UsbSerialPort usbSerialPort;
+    private UsbPermission usbPermission = UsbPermission.Unknown;
+    private boolean connected = false;
 
     public TerminalFragment() {
         broadcastReceiver = new BroadcastReceiver() {
@@ -161,10 +156,8 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
         View sendBtn = view.findViewById(R.id.send_btn);
         sendBtn.setOnClickListener(v -> send(sendText.getText().toString()));
         View receiveBtn = view.findViewById(R.id.receive_btn);
+
         controlLines = new ControlLines(view);
-
-
-        //mybitmap.eraseColor(Color.BLACK);
 
         if (withIoManager) {
             receiveBtn.setVisibility(View.GONE);
@@ -218,6 +211,7 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
         mainLooper.post(() -> {
             receive(data);
         });
+
     }
 
     @Override
@@ -319,7 +313,6 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
         }
     }
 
-
     private void read() {
         if (!connected) {
             Toast.makeText(getActivity(), "not connected", Toast.LENGTH_SHORT).show();
@@ -338,14 +331,20 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
         }
     }
 
-
     private void receive(byte[] data) {
+
+        ImageView neutronView = (ImageView) getView().findViewById(R.id.time_graph);
+        // do once :)
+        if(counter==0){
+            TimeBitmap.eraseColor(Color.BLACK);
+        }
 
         low_noise = 509;
         high_noise = 513;
 
         // data range to display
-        min = 200; max = 800;
+        min = 200;
+        max = 800;
         resolution = (double) window_height / (max - min);
 
         // how thick should be data point displayed
@@ -358,41 +357,90 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
         data_points = data.length / 2;
         // the "tails" of two adjacent data points overlap by  half_width_x
         frame_width = (2 * half_width_x + 1) * data_points - (data_points - 1) * half_width_x;
-        max_frames = width/frame_width;
+        max_frames = width / frame_width;
 
 
         SpannableStringBuilder spn = new SpannableStringBuilder();
         //spn.append("receive " + data.length + " bytes\n");
         if (data.length >= 0) {
-            //packets_counter++;
-            // comment out the next line if now numerical output is necessary
+            // comment out the next line if no numerical output is necessary
             // spn.append(HexDump.dumpHexString(data)).append("\n");
-            int events=HexDump.returnCounts(data);
+            int events = HexDump.returnCounts(data);
 
             if (events != 0) {
 
                 if (frame_count == max_frames) {
-                    spn.append(String.valueOf(round(count_speed*10d)/10d)).
+
+                    spn.append(String.valueOf(round(count_speed * 10d) / 10d)).
                             append(" counts/second").append("\n");
+
+
+                    // code for continuous count speed monitoring and display
+                    time_fnshd=(System.currentTimeMillis()-time_strt)
+                            // adjusted for the width of the screen !!
+                            *width/(1000*time_range*60);
+
+                    if(time_fnshd>(width-1)){
+                        time_strt=System.currentTimeMillis();
+                        time_fnshd=0;
+                        counter=0;
+                        TimeBitmap.eraseColor(Color.BLACK);
+                    }
+                    // position along the time line fitted within screen size = width - 1
+                    counts_values[0][counter]=(int)time_fnshd;
+                    counts_values[1][counter]=(int)(round(count_speed * 10d) / 10d);
+//                    spn.append(String.valueOf(counts_values[0][counter])).append("\t")
+//                       .append(String.valueOf(counts_values[1][counter])).append("\t")
+//                            .append(String.valueOf(counter)).append("\t")
+//                            .append("\n");
+
+                    // global time_passed and count_speed are updated in GraphicalOutput(data)
+//                    spn.append(String.valueOf(time_fnshd)).append("\t")
+//                            .append(String.valueOf((int)(round(count_speed * 10d) / 10d))).append("\t")
+//                            .append(String.valueOf(counter)).append("\t")
+//                            .append("\n");
+
+
+/*                    spn.append(String.valueOf(counts_values[0][0])).append("\t")
+                            .append(String.valueOf(counts_values[1][0])).append("\t")
+                            .append("\n");*/
+
+
+                    int scaling=20;
+                    if(scaling*counts_values[1][counter]<neutron_window_height){
+
+                        //make a while loop //int y=neutron_window_height-scaling*counts_values[1][counter]-1;
+
+                        for(int y=neutron_window_height-scaling*counts_values[1][counter]-1;
+                            y<neutron_window_height;
+                            y++){
+                        TimeBitmap.setPixel( counts_values[0][counter],
+                                y,
+                                Color.argb(255, 0, 255, 0));
+                        }
+                    }
+
+                    counter++;
+
+                    ((ImageView) neutronView).setImageBitmap(TimeBitmap);
+
                 }
 
                 // To plot data
+
                 GraphicalOutput(data);
 
                 // events are counted after the data is displayed
-                events_counter+=events;
-/*                // number of events per current data buffer
-                    spn.append("[").
-                        append(String.valueOf(events)).
-                        append("] ").
-                        append("\t");
+                events_counter += events;
+  /*              // number of events per current data buffer
+                    spn.append("[").append(String.valueOf(events)).append("] ").append("\t");
 */
 
             }
 
         }
 
-        // comment out the next line if now numerical output is necessary
+        // comment out the next line if no numerical output is necessary
         receiveText.append(spn);
     }
 
@@ -404,28 +452,35 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
         if (frame_count == max_frames) {
             // at this point, we are stepping into the max_frame+1 events
             // so the UI will display the previous count speed
-            time_passed=System.currentTimeMillis()-time_start;
-            count_speed=Double.valueOf(events_counter)*1000.0d/Double.valueOf(time_passed);
 
-            //receiveText.append("\n");
-            //receiveText.append(String.valueOf(count_speed));
-            //receiveText.append("\n");
+            // the count speed is calculated based on the max_frame number of frame with nonzero events
+            time_passed = System.currentTimeMillis() - time_start;
+            count_speed = Double.valueOf(events_counter) * 1000.0d / Double.valueOf(time_passed);
 
             frame_count = 0;
-            events_counter=0;
+            events_counter = 0;
             mybitmap.eraseColor(Color.BLACK);
 
             color_switch = 0;
             // It clears the whole roll of the scrolling text
             receiveText.setText(null);
-            time_start=System.currentTimeMillis();
-        }
+            time_start = System.currentTimeMillis();
 
+//for(int ii=0;ii<width;ii++) {
+//    mybitmap.setPixel(counts_values[0][ii],
+//            window_height - 1 - counts_values[1][ii],
+//            Color.argb(255, 0, 0, 255));
+//}
+
+        }
 
         final Runnable PLotData = new Runnable() {
             private final char[] HEX_DIGITS = {
                     '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
             };
+
+            int red_color = color_switch % 2 * 255;
+            int green_color = (color_switch + 1) % 2 * 255;
 
             @Override
             public void run() {
@@ -443,10 +498,7 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
                     signal.append(HEX_DIGITS[b2 & 0x0F]);
                     int signal_decimal = Integer.parseInt(String.valueOf(signal), 16);
 
-                    //if (signal_decimal < low_noise || signal_decimal > high_noise) {// To cut the noise
-
                     int y = (int) (((double) signal_decimal - min) * resolution);
-//                // I'm assuming that we have 62 bytes-> 31 data points. Probably it is determined by a buffer size
 
                     if (y >= 0 + half_width_y && y < window_height - half_width_y) {
 
@@ -454,33 +506,14 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
                         for (int j = -half_width_x; j <= half_width_x; j++) {
                             for (int k = -half_width_y; k <= half_width_y; k++) {
 
-                                //if (signal_decimal < low_noise || signal_decimal > high_noise) {// To cut the noise from display
-                                // color_switch was introduced to see the parts of the signal from different data bursts
-                                if (color_switch % 2 == 0) {
-                                    mybitmap.setPixel((i / 2 + half_width_x) + half_width_x * (i / 2) + j + frame_count * frame_width,
-                                            window_height - 1 - y + k,
-                                            Color.argb(255, 0, 255, 0));
-                                } else {
-                                    mybitmap.setPixel((i / 2 + half_width_x) + half_width_x * (i / 2) + j + frame_count * frame_width,
-                                            window_height - 1 - y + k,
-                                            Color.argb(255, 255, 0, 0));
-                                }
-                                //}
-                                //else{
-                                // plot the noise. clean later the code
-                                //    mybitmap.setPixel((i / 2 + half_width_x) + half_width_x * (i / 2) + j + frame_count * frame_width,
-                                //            window_height - 1 - y + k,
-                                //            Color.argb(255, 0, 0, 255));
-                                //}
+                                mybitmap.setPixel((i / 2 + half_width_x) + half_width_x * (i / 2) + j + frame_count * frame_width,
+                                        window_height - 1 - y + k,
+                                        Color.argb(255, red_color, green_color, 0));
 
                             }
                         }
+
                     }
-
-                    //}
-
-                    //((ImageView) localView).setImageBitmap(mybitmap);
-
                 }
 
                 frame_count++;
@@ -490,14 +523,6 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
                 // seems does not make a bigger difference
                 //((ImageView) localView).invalidate();
 
-                //receiveText.append(String.valueOf(neutron_count)+" ");
-                //receiveText.append(String.valueOf(frame_count)+" ");
-
-//                if (color_switch % (10 * max_frames) == 0) {
-//                    mybitmap.eraseColor(Color.BLACK);
-//                    color_switch = 0;
-//                }
-
 
             }
 
@@ -506,12 +531,14 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
 
     }
 
-
     void status(String str) {
         SpannableStringBuilder spn = new SpannableStringBuilder(str + '\n');
         spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorStatusText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
         receiveText.append(spn);
     }
+
+
+    private enum UsbPermission {Unknown, Requested, Granted, Denied}
 
     class ControlLines {
         private static final int refreshInterval = 200; // msec

@@ -88,6 +88,12 @@
         android:layout_height="wrap_content"
         app:srcCompat="@android:drawable/ic_menu_myplaces" />
 
+    <ImageView
+        android:id="@+id/time_graph"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:srcCompat="@android:drawable/ic_menu_myplaces" />
+
     <TextView
         android:id="@+id/receive_text"
         android:layout_width="match_parent"
