@@ -75,6 +75,7 @@
             android:textOff="RI"
             android:textOn="RI" />
 
+
     </LinearLayout>
 
     <View
@@ -87,6 +88,38 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         app:srcCompat="@android:drawable/ic_menu_myplaces" />
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:gravity="center_horizontal"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/RangeToDisplay"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="0"
+            android:text="Range to display:" />
+
+        <EditText
+            android:id="@+id/DisplayedRangeInMinutes"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="0"
+            android:ems="2"
+            android:gravity="center_horizontal"
+            android:inputType="number" />
+
+        <TextView
+            android:id="@+id/Minutes"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="0"
+            android:text="minutes" />
+
+
+    </LinearLayout>
 
     <ImageView
         android:id="@+id/time_graph"
@@ -103,7 +136,7 @@
         android:gravity="top"
         android:scrollbars="vertical"
         android:textAppearance="@style/TextAppearance.AppCompat.Medium"
-        android:textSize="15sp"
+        android:textSize="14sp"
         android:textStyle="bold"
         android:typeface="monospace"
         app:autoSizeTextType="none" />

@@ -3,10 +3,12 @@
   <component name="DesignSurface">
     <option name="filePathToZoomLevelMap">
       <map>
+        <entry key="..\:/7_android/usb-serial-for-android-3.4.4/usbSerialExamples/src/main/res/drawable/ic_delete_white_24dp.xml" value="0.10740740740740741" />
+        <entry key="..\:/7_android/usb-serial-for-android-3.4.4/usbSerialExamples/src/main/res/drawable/ic_send_white_24dp.xml" value="0.10740740740740741" />
         <entry key="..\:/7_android/usb-serial-for-android-3.4.4/usbSerialExamples/src/main/res/layout/activity_main.xml" value="0.13958333333333334" />
         <entry key="..\:/7_android/usb-serial-for-android-3.4.4/usbSerialExamples/src/main/res/layout/device_list_header.xml" value="0.2" />
         <entry key="..\:/7_android/usb-serial-for-android-3.4.4/usbSerialExamples/src/main/res/layout/device_list_item.xml" value="0.13958333333333334" />
-        <entry key="..\:/7_android/usb-serial-for-android-3.4.4/usbSerialExamples/src/main/res/layout/fragment_terminal.xml" value="0.176" />
+        <entry key="..\:/7_android/usb-serial-for-android-3.4.4/usbSerialExamples/src/main/res/layout/fragment_terminal.xml" value="0.264" />
         <entry key="..\:/7_android/usb-serial-for-android-3.4.4/usbSerialExamples/src/main/res/menu/menu_devices.xml" value="0.4" />
         <entry key="..\:/7_android/usb-serial-for-android-3.4.4/usbSerialExamples/src/main/res/menu/menu_terminal.xml" value="0.4" />
       </map>
